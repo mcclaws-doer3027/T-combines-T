@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IdeaValidator - Find Validated SaaS Ideas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <h2>💡 IdeaValidator</h2>
+            <div>
+                <a href="{{ url_for('login') }}" class="btn-secondary">Login</a>
+                <a href="{{ url_for('signup') }}" class="btn-primary">Sign Up Free</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container">
+            <h1>Find Validated SaaS Ideas in Minutes</h1>
+            <p class="subtitle">AI analyzes Reddit to find real problems people will pay to solve</p>
+            <a href="{{ url_for('signup') }}" class="btn-primary btn-large">Start Free Trial</a>
+            <p class="small">10 free analyses • No credit card</p>
+        </div>
+    </header>
+
+    <section class="features">
+        <div class="container">
+            <h2>How It Works</h2>
+            <div class="feature-grid">
+                <div class="feature">
+                    <div class="feature-icon">🔍</div>
+                    <h3>1. Choose Category</h3>
+                    <p>Marketing, Sales, Dev Tools, etc.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🤖</div>
+                    <h3>2. AI Analysis</h3>
+                    <p>Analyzes pain, willingness-to-pay, market size</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <h3>3. Get Results</h3>
+                    <p>Ranked opportunities with evidence</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2026 IdeaValidator</p>
+    </footer>
+</body>
+</html>

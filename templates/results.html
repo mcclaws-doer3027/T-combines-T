@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Results - IdeaValidator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <h2>💡 IdeaValidator</h2>
+            <div>
+                <a href="{{ url_for('dashboard') }}" class="btn-secondary">← Dashboard</a>
+                <a href="{{ url_for('export_csv', analysis_id=analysis.id) }}" class="btn-primary">Export CSV</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top:40px;">
+        <div class="results-header">
+            <h1>{{ analysis.category|title }} - Top Opportunities</h1>
+            <p>{{ analysis.created_at.strftime('%Y-%m-%d %H:%M') }} • {{ analysis.num_opportunities }} found</p>
+        </div>
+
+        {% for result in results %}
+        <div class="opportunity-card {% if result.analysis.recommendation == 'strong_opportunity' %}strong{% elif result.analysis.recommendation == 'moderate' %}moderate{% else %}weak{% endif %}">
+            <div class="opportunity-header">
+                <div>
+                    <h3>{{ loop.index }}. {{ result.title }}</h3>
+                    <p class="opportunity-meta">r/{{ result.subreddit }} • {{ result.score }} ↑ • {{ result.num_comments }} comments</p>
+                </div>
+                <div class="opportunity-score">
+                    <div class="score-number">{{ result.analysis.opportunity_score }}</div>
+                    <div class="score-label">/1000</div>
+                </div>
+            </div>
+
+            <div class="opportunity-body">
+                <div class="metric-row">
+                    <div class="metric">
+                        <span class="metric-label">Pain</span>
+                        <span class="metric-value">{{ result.analysis.pain_score }}/100</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">WTP</span>
+                        <span class="metric-value badge badge-{{ result.analysis.willingness_to_pay }}">
+                            {{ result.analysis.willingness_to_pay|upper }}
+                        </span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">People</span>
+                        <span class="metric-value">~{{ result.analysis.people_affected }}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Frequency</span>
+                        <span class="metric-value">{{ result.analysis.frequency|title }}</span>
+                    </div>
+                </div>
+
+                <div class="pain-indicators">
+                    <strong>Pain Signals:</strong>
+                    <ul>
+                        {% for indicator in result.analysis.key_pain_indicators %}
+                        <li>"{{ indicator }}"</li>
+                        {% endfor %}
+                    </ul>
+{% if result.analysis.existing_solutions %}
+            <div class="competition">
+                <strong>Solutions:</strong> {{ result.analysis.existing_solutions|join(', ') }}
+                {% if result.analysis.solution_gaps %}
+                <br><strong>Gaps:</strong> {{ result.analysis.solution_gaps|join(', ') }}
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="reasoning">
+                <strong>Analysis:</strong> {{ result.analysis.reasoning }}
+            </div>
+
+            <div class="opportunity-footer">
+                <span class="badge badge-{{ result.analysis.recommendation }}">
+                    {% if result.analysis.recommendation == 'strong_opportunity' %}
+                        🔥 STRONG
+                    {% elif result.analysis.recommendation == 'moderate' %}
+                        ⭐ MODERATE
+                    {% else %}
+                        ⚠️ WEAK
+                    {% endif %}
+                </span>
+                <a href="{{ result.url }}" target="_blank" class="btn-small">View Discussion →</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>

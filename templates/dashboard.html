@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard - IdeaValidator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <h2>💡 IdeaValidator</h2>
+            <div>
+                <span>{{ user.email }}</span>
+                <a href="{{ url_for('logout') }}" class="btn-secondary">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top:40px;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="dashboard-header">
+            <div>
+                <h1>Dashboard</h1>
+                <p>Analyses: {{ user.analyses_used }} / {{ free_limit if not user.is_pro else '∞' }}</p>
+            </div>
+        </div>
+
+        <div class="analyze-section">
+            <h2>Start New Analysis</h2>
+            <form method="POST" action="{{ url_for('analyze') }}">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="category" required>
+                        <option value="">Choose...</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="sales">Sales</option>
+                        <option value="productivity">Productivity</option>
+                        <option value="developer_tools">Developer Tools</option>
+                        <option value="general">General</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary" {% if not user.can_analyze() %}disabled{% endif %}>
+                    🔍 Analyze Problems
+                </button>
+                <p class="small">Takes 2-3 minutes</p>
+            </form>
+        </div>
+
+        <div class="recent-analyses">
+            <h2>Recent Analyses</h2>
+            {% if analyses %}
+                <table>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Opportunities</th>
+                        <th>Actions</th>
+                    </tr>
+                    {% for analysis in analyses %}
+                    <tr>
+                        <td>{{ analysis.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ analysis.category|title }}</td>
+                        <td>{{ analysis.num_opportunities }}</td>
+                        <td>
+                            <a href="{{ url_for('results', analysis_id=analysis.id) }}" class="btn-small">View</a>
+                            <a href="{{ url_for('export_csv', analysis_id=analysis.id) }}" class="btn-small">Export</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            {% else %}
+                <p>No analyses yet. Start your first one above!</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
