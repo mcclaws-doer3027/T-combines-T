@@ -1,6 +1,7 @@
 import praw
 from groq import Groq
 import json
+import re
 import time
 from datetime import datetime
 import requests
@@ -222,7 +223,63 @@ Return exactly:
         score += 80 if solutions == 0 else (60 if gaps > solutions else 30)
         
         return min(1000, int(score))
+    import re
+
+def extract_competitors(posts):
+    """Extract competitor mentions from posts"""
     
+    competitors = {}
+    
+    # Common patterns for tool mentions
+    tool_pattern = r'\b([A-Z][a-z]+(?:[A-Z][a-z]+)*)\b'  # CamelCase names
+    
+    for post in posts:
+        # Search in post body
+        text = post['body'] + ' ' + post['title']
+        
+        # Also search comments
+        for comment in post.get('comments', []):
+            text += ' ' + comment['text']
+        
+        # Find potential tool names
+        potential_tools = re.findall(tool_pattern, text)
+        
+        # Common competitors (you can expand this)
+        known_competitors = [
+            'HubSpot', 'Salesforce', 'Mailchimp', 'Stripe', 'Zapier',
+            'Asana', 'Trello', 'Slack', 'Notion', 'Airtable',
+            'Intercom', 'Zendesk', 'Mixpanel', 'Amplitude'
+        ]
+        
+        for tool in potential_tools:
+            if tool in known_competitors:
+                # Extract context around mention
+                context_pattern = rf'.{{0,50}}\b{tool}\b.{{0,50}}'
+                contexts = re.findall(context_pattern, text, re.IGNORECASE)
+                
+                if tool not in competitors:
+                    competitors[tool] = {
+                        'mentions': 0,
+                        'complaints': [],
+                        'contexts': []
+                    }
+                
+                competitors[tool]['mentions'] += 1
+                competitors[tool]['contexts'].extend(contexts[:3])
+                
+                # Check for negative sentiment
+                for ctx in contexts:
+                    if any(word in ctx.lower() for word in ['expensive', 'complex', 'difficult', 'slow', 'bad', 'hate']):
+                        competitors[tool]['complaints'].append(ctx.strip())
+    
+    # Sort by mentions
+    sorted_competitors = dict(sorted(
+        competitors.items(),
+        key=lambda x: x[1]['mentions'],
+        reverse=True
+    ))
+    
+    return sorted_competitors
     def analyze_category(self, category, limit=15):  # REDUCED from 30 to 15
         """Full pipeline - OPTIMIZED"""
         
@@ -244,29 +301,35 @@ Return exactly:
         
         # STEP 2: Analyze with AI
         print(f"🤖 Analyzing {len(posts)} posts...\n")
+        # NEW: Extract competitors
+    competitors = extract_competitors(results)
+    
+    results = []
+
+    for i, post in enumerate(posts, 1):
+        print(f"[{i}/{len(posts)}] {post['title'][:50]}...")
         
-        results = []
-        for i, post in enumerate(posts, 1):
-            print(f"[{i}/{len(posts)}] {post['title'][:50]}...")
-            
-            analysis = self.analyze_post(post)
-            
-            if analysis and analysis['recommendation'] != 'skip':
-                post['analysis'] = analysis
-                results.append(post)
-                print(f"  ✅ {analysis['opportunity_score']}/1000")
-            else:
-                print(f"  ⏭️  Skipped")
-            
-            time.sleep(0.5)  # Reduced from 0.8
+        analysis = self.analyze_post(post)
         
-        results.sort(key=lambda x: x['analysis']['opportunity_score'], reverse=True)
+        if analysis and analysis['recommendation'] != 'skip':
+            post['analysis'] = analysis
+            results.append(post)
+            print(f"  ✅ {analysis['opportunity_score']}/1000")
+        else:
+            print(f"  ⏭️  Skipped")
         
-        total_time = time.time() - start_time
+        time.sleep(0.5)  # Reduced from 0.8
+
+    results.sort(key=lambda x: x['analysis']['opportunity_score'], reverse=True)
         
-        print(f"\n{'='*60}")
-        print(f"✅ Found {len(results)} opportunities")
-        print(f"⏱️  Total time: {total_time:.1f}s (~{total_time/60:.1f} min)")
-        print(f"{'='*60}\n")
+    total_time = time.time() - start_time
+
+    for result in results:
+        result['competitors'] = competitors
         
-        return results
+    print(f"\n{'='*60}")
+    print(f"✅ Found {len(results)} opportunities")
+    print(f"⏱️  Total time: {total_time:.1f}s (~{total_time/60:.1f} min)")
+    print(f"{'='*60}\n")
+
+    return results

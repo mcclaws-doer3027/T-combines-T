@@ -6,7 +6,9 @@ from datetime import datetime
 import json
 import csv
 import io
-
+from matching import rank_categories
+from revenue_calculator import estimate_revenue
+import json
 from config import Config
 from reddit_oauth_analyzer import RedditOAuthAnalyzer
 
@@ -44,6 +46,17 @@ class User(UserMixin, db.Model):
     
     def can_analyze(self):
         return self.is_pro or self.analyses_used < Config.FREE_TIER_LIMIT
+    # In app.py, add new model:
+
+class UserProfile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), unique=True)
+    background = db.Column(db.String(50))
+    interests = db.Column(db.Text)  # JSON array as string
+    time_available = db.Column(db.String(50))
+    budget = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Analysis(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -78,8 +91,8 @@ def signup():
         db.session.commit()
         
         login_user(user)
-        flash('Account created!', 'success')
-        return redirect(url_for('dashboard'))
+        # Redirect to onboarding for new users
+        return redirect(url_for('onboarding'))
     
     return render_template('signup.html')
 
@@ -93,7 +106,8 @@ def login():
         
         if user and user.check_password(password):
             login_user(user)
-            return redirect(url_for('dashboard'))
+            # Redirect to personalized dashboard
+            return redirect(url_for('personalized_dashboard'))
         
         flash('Invalid credentials', 'error')
     
@@ -126,7 +140,9 @@ def analyze():
     category = request.form.get('category')
     
     try:
-        results = analyzer.analyze_category(category, limit=20)
+        print(f"\n⏱️  Starting analysis for {current_user.email}...")
+        
+        results = analyzer.analyze_category(category, limit=15)
         
         analysis = Analysis(
             user_id=current_user.id,
@@ -138,12 +154,12 @@ def analyze():
         
         current_user.analyses_used += 1
         db.session.commit()
-        
-        return redirect(url_for('results', analysis_id=analysis.id))
+        return redirect(url_for('results_chart', analysis_id=analysis.id))
     
     except Exception as e:
         flash(f'Error: {str(e)}', 'error')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('personalized_dashboard'))
+
 
 @app.route('/results/<int:analysis_id>')
 @login_required
@@ -194,6 +210,45 @@ def export_csv(analysis_id):
         as_attachment=True,
         download_name=f'analysis_{analysis_id}.csv'
     )
+    
+@app.route('/personalized_dashboard')
+@login_required
+def personalized_dashboard():
+    """Show personalized dashboard with ranked categories"""
+    if not profile_data:
+        return redirect(url_for('onboarding'))
+    # Rank categories based on profile
+    ranked_categories = rank_categories(profile_data)
+    
+    return render_template('personalized_dashboard.html',
+                         profile=profile_data,
+                         ranked_categories=ranked_categories)
+
+@app.route('/results_chart/<int:analysis_id>')
+@login_required
+def results_chart(analysis_id):
+    """Show results as interactive chart"""
+    
+    analysis = Analysis.query.get_or_404(analysis_id)
+    
+    if analysis.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
+    results_data = json.loads(analysis.results)
+    
+    # Take top 15 for chart
+    top_results = results_data[:15]
+    
+    return render_template('results_chart.html',
+                         analysis=analysis,
+                         results=top_results)
+
+@app.route('/problem/<string:problem_id>')
+@login_required
+def problem_detail(problem_id):
+    """Show detailed view of a single problem"""
+    
 
 # Initialize database
 with app.app_context():
@@ -201,3 +256,109 @@ with app.app_context():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+    # In app.py:
+
+@app.route('/onboarding', methods=['GET', 'POST'])
+@login_required
+def onboarding():
+    if request.method == 'POST':
+        profile = UserProfile.query.filter_by(user_id=current_user.id).first()
+        # Check if user has completed onboarding
+        profile_data = get_user_profile(current_user.id)
+    
+        if not profile:
+            profile = UserProfile(user_id=current_user.id)
+        
+        profile.background = request.form.get('background')
+        profile.interests = json.dumps(request.form.getlist('interests'))
+        profile.time_available = request.form.get('time_available')
+        profile.budget = request.form.get('budget')
+        profile.updated_at = datetime.utcnow()
+        
+        db.session.add(profile)
+        db.session.commit()
+        
+        return redirect(url_for('personalized_dashboard'))
+    
+    return render_template('onboarding.html')
+
+# Rank categories based on profile
+    ranked_categories = rank_categories(profile_data)
+    
+    return render_template('personalized_dashboard.html',
+                         profile=profile_data,
+                         ranked_categories=ranked_categories)
+
+@app.route('/results_chart/<int:analysis_id>')
+@login_required
+def results_chart(analysis_id):
+    """Show results as interactive chart"""
+    
+    analysis = Analysis.query.get_or_404(analysis_id)
+    
+    if analysis.user_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
+    results_data = json.loads(analysis.results)
+    
+    # Take top 15 for chart
+    top_results = results_data[:15]
+    
+    return render_template('results_chart.html',
+                         analysis=analysis,
+                         results=top_results)
+
+@app.route('/problem/<string:problem_id>')
+@login_required
+def problem_detail(problem_id):
+    """Show detailed view of a single problem"""
+    
+    # Find the analysis containing this problem
+    # (In real app, you'd store problems separately)
+    # For now, search through user's recent analyses
+    
+    analyses = Analysis.query.filter_by(user_id=current_user.id)\
+        .order_by(Analysis.created_at.desc()).limit(10).all()
+    
+    problem = None
+    analysis_id = None
+    
+    for analysis in analyses:
+        results = json.loads(analysis.results)
+        for result in results:
+            if result['id'] == problem_id:
+                problem = result
+                analysis_id = analysis.id
+                break
+        if problem:
+            break
+    
+    if not problem:
+        flash('Problem not found', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Calculate revenue projections
+    revenue = estimate_revenue(problem['analysis'])
+    
+    # Get competitors (if available)
+    competitors = problem.get('competitors', {})
+    
+    return render_template('problem_detail.html',
+                         problem=problem,
+                         analysis_id=analysis_id,
+                         revenue=revenue,
+                         competitors=competitors)
+
+# Helper function in app.py:
+
+def get_user_profile(user_id):
+    profile = UserProfile.query.filter_by(user_id=user_id).first()
+    if profile:
+        return {
+            'background': profile.background,
+            'interests': json.loads(profile.interests),
+            'time_available': profile.time_available,
+            'budget': profile.budget
+        }
+    return None
