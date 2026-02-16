@@ -142,7 +142,7 @@ def analyze():
     try:
         print(f"\n⏱️  Starting analysis for {current_user.email}...")
         
-        results = analyzer.analyze_category(category, limit=15)
+        results = analyzer.analyze_idea(category)
         
         analysis = Analysis(
             user_id=current_user.id,
@@ -215,14 +215,20 @@ def export_csv(analysis_id):
 @login_required
 def personalized_dashboard():
     """Show personalized dashboard with ranked categories"""
+    
+    profile_data = get_user_profile(current_user.id)  # ✅ DEFINE IT FIRST
+    
     if not profile_data:
         return redirect(url_for('onboarding'))
+    
     # Rank categories based on profile
     ranked_categories = rank_categories(profile_data)
     
-    return render_template('personalized_dashboard.html',
-                         profile=profile_data,
-                         ranked_categories=ranked_categories)
+    return render_template(
+        'personalized_dashboard.html',
+        profile=profile_data,
+        ranked_categories=ranked_categories
+    )
 
 @app.route('/results_chart/<int:analysis_id>')
 @login_required
@@ -244,18 +250,11 @@ def results_chart(analysis_id):
                          analysis=analysis,
                          results=top_results)
 
-@app.route('/problem/<string:problem_id>')
-@login_required
-def problem_detail(problem_id):
-    """Show detailed view of a single problem"""
-    
-
 # Initialize database
 with app.app_context():
     db.create_all()
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+
     # In app.py:
 
 @app.route('/onboarding', methods=['GET', 'POST'])
@@ -288,19 +287,6 @@ def onboarding():
     return render_template('personalized_dashboard.html',
                          profile=profile_data,
                          ranked_categories=ranked_categories)
-
-@app.route('/results_chart/<int:analysis_id>')
-@login_required
-def results_chart(analysis_id):
-    """Show results as interactive chart"""
-    
-    analysis = Analysis.query.get_or_404(analysis_id)
-    
-    if analysis.user_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('dashboard'))
-    
-    results_data = json.loads(analysis.results)
     
     # Take top 15 for chart
     top_results = results_data[:15]
@@ -361,4 +347,6 @@ def get_user_profile(user_id):
             'time_available': profile.time_available,
             'budget': profile.budget
         }
-    return None
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+    

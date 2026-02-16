@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Onboarding - IdeaValidator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .onboarding-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+        }
+        .question {
+            margin-bottom: 30px;
+        }
+        label {
+            display: block;
+            margin: 10px 0;
+        }
+        input[type="radio"],
+        input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .progress {
+            background: #eee;
+            height: 8px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .progress-bar {
+            background: #6366f1;
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="onboarding-container">
+        <div class="progress">
+            <div class="progress-bar" style="width: 33%"></div>
+        </div>
+        
+        <h1>Let's Personalize Your Experience</h1>
+        <p>Answer 3 quick questions (30 seconds)</p>
+        
+        <form method="POST">
+            <!-- Question 1: Background -->
+            <div class="question">
+                <h3>1. What's your background?</h3>
+                <label>
+                    <input type="radio" name="background" value="developer" required>
+                    Developer / Engineer
+                </label>
+                <label>
+                    <input type="radio" name="background" value="designer">
+                    Designer / Creative
+                </label>
+                <label>
+                    <input type="radio" name="background" value="marketer">
+                    Marketer / Growth
+                </label>
+                <label>
+                    <input type="radio" name="background" value="sales">
+                    Sales / Business
+                </label>
+                <label>
+                    <input type="radio" name="background" value="other">
+                    Other
+                </label>
+            </div>
+            
+            <!-- Question 2: Interests -->
+            <div class="question">
+                <h3>2. What interests you? (Select all that apply)</h3>
+                <label>
+                    <input type="checkbox" name="interests" value="marketing">
+                    Marketing & Growth
+                </label>
+                <label>
+                    <input type="checkbox" name="interests" value="sales">
+                    Sales & CRM
+                </label>
+                <label>
+                    <input type="checkbox" name="interests" value="productivity">
+                    Productivity
+                </label>
+                <label>
+                    <input type="checkbox" name="interests" value="developer_tools">
+                    Developer Tools
+                </label>
+                <label>
+                    <input type="checkbox" name="interests" value="general">
+                    General / Explore All
+                </label>
+            </div>
+            
+            <!-- Question 3: Resources -->
+            <div class="question">
+                <h3>3. Your resources</h3>
+                
+                <label for="time">Time available:</label>
+                <select name="time_available" id="time" required>
+                    <option value="nights_weekends">Nights & Weekends (10-20 hrs/week)</option>
+                    <option value="part_time">Part-time (20-30 hrs/week)</option>
+                    <option value="full_time">Full-time (40+ hrs/week)</option>
+                </select>
+                
+                <br><br>
+                
+                <label for="budget">Starting budget:</label>
+                <select name="budget" id="budget" required>
+                    <option value="0-1k">$0 - $1,000</option>
+                    <option value="1k-10k">$1,000 - $10,000</option>
+                    <option value="10k+">$10,000+</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn-primary btn-block">
+                Find My Opportunities →
+            </button>
+        </form>
+    </div>
+</body>
+</html>

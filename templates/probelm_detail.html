@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Problem Detail - IdeaValidator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .detail-container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+        }
+        .score-header {
+            background: #f0f0ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .metric {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #6366f1;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            border-left: 4px solid #6366f1;
+            background: #f9f9f9;
+        }
+        .competitor-item {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        .revenue-table {
+            width: 100%;
+            margin: 15px 0;
+        }
+        .revenue-table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <h2>💡 IdeaValidator</h2>
+            <div>
+                <a href="{{ url_for('results', analysis_id=analysis_id) }}" class="btn-secondary">← Back to Chart</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="detail-container">
+        <!-- Header with Score -->
+        <div class="score-header">
+            <h1>{{ problem.title }}</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+                <span class="badge badge-{{ problem.analysis.recommendation }}">
+                    {{ problem.analysis.recommendation|replace('_', ' ')|upper }}
+                </span>
+                <div style="text-align: right;">
+                    <div style="font-size: 3rem; font-weight: bold; color: #6366f1;">
+                        {{ problem.analysis.opportunity_score }}
+                    </div>
+                    <div style="color: #666;">/ 1000</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="metric-grid">
+            <div class="metric">
+                <div class="metric-value">{{ problem.analysis.pain_score }}</div>
+                <div class="metric-label">Pain Intensity</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">{{ problem.analysis.willingness_to_pay|upper }}</div>
+                <div class="metric-label">Willingness to Pay</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value">~{{ problem.analysis.people_affected }}</div>
+                <div class="metric-label">People Affected</div>
+            </div>
+        </div>
+
+        <!-- Problem Description -->
+        <div class="section">
+            <h2>🎯 The Problem</h2>
+            <p>{{ problem.body[:500] }}...</p>
+            <p><strong>Frequency:</strong> {{ problem.analysis.frequency|title }}</p>
+        </div>
+
+        <!-- Pain Indicators -->
+        <div class="section">
+            <h2>💬 Key Pain Signals</h2>
+            <ul>
+                {% for indicator in problem.analysis.key_pain_indicators %}
+                <li>"{{ indicator }}"</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Competitors -->
+        {% if competitors %}
+        <div class="section">
+            <h2>🏢 Existing Competitors</h2>
+            {% for name, data in competitors.items() %}
+            <div class="competitor-item">
+                <h3>{{ name }}</h3>
+                <p><strong>Mentions:</strong> {{ data.mentions }}</p>
+                {% if data.complaints %}
+                <p><strong>Top Complaints:</strong></p>
+                <ul>
+                    {% for complaint in data.complaints[:3] %}
+                    <li>{{ complaint }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endfor %}
+            
+            <div style="margin-top: 20px; padding: 15px; background: #e0f2e0; border-radius: 8px;">
+                <strong>🎯 Your Opportunity:</strong> 
+                Build a solution that addresses the complaints above
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Revenue Projections -->
+        <div class="section">
+            <h2>💰 Revenue Potential</h2>
+            <p>Based on market size, WTP signals, and competitor pricing:</p>
+            
+            <table class="revenue-table">
+                <tr>
+                    <td><strong>Conservative</strong></td>
+                    <td>
+                        {{ revenue.conservative.customers }} customers × 
+                        ${{ revenue.conservative.price }}/mo = 
+                        <strong>${{ "{:,}".format(revenue.conservative.annual) }}/year</strong>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Moderate</strong></td>
+                    <td>
+                        {{ revenue.moderate.customers }} customers × 
+                        ${{ revenue.moderate.price }}/mo = 
+                        <strong>${{ "{:,}".format(revenue.moderate.annual) }}/year</strong>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Optimistic</strong></td>
+                    <td>
+                        {{ revenue.optimistic.customers }} customers × 
+                        ${{ revenue.optimistic.price }}/mo = 
+                        <strong>${{ "{:,}".format(revenue.optimistic.annual) }}/year</strong>
+                    </td>
+                </tr>
+            </table>
+            
+            <p style="margin-top: 15px; color: #666;">
+                <small>Addressable market: ~{{ revenue.addressable_market }} potential customers</small>
+            </p>
+        </div>
+
+        <!-- Reasoning -->
+        <div class="section">
+            <h2>📊 Analysis Summary</h2>
+            <p>{{ problem.analysis.reasoning }}</p>
+        </div>
+
+        <!-- Original Discussion -->
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="{{ problem.url }}" target="_blank" class="btn-primary">
+                View Original Reddit Discussion →
+            </a>
+        </div>
+    </div>
+</body>
+</html>

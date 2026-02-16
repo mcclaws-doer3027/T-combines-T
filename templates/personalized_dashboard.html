@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Your Dashboard - IdeaValidator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .profile-summary {
+            background: #f0f0ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .category-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .category-card.top-match {
+            border-color: #6366f1;
+            background: #f9f9ff;
+        }
+        .match-badge {
+            background: #6366f1;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <h2>💡 IdeaValidator</h2>
+            <div>
+                <a href="{{ url_for('logout') }}" class="btn-secondary">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="margin-top: 40px;">
+        <div class="profile-summary">
+            <h3>Your Profile</h3>
+            <p>
+                Background: <strong>{{ profile.background|title }}</strong> |
+                Interests: <strong>{{ profile.interests|join(', ')|title }}</strong>
+            </p>
+            <a href="{{ url_for('onboarding') }}">Update Preferences</a>
+        </div>
+
+        <h1>Your Personalized Opportunities</h1>
+        <p>Categories ranked by match with your profile:</p>
+
+        {% for category in ranked_categories %}
+        <div class="category-card {% if loop.index == 1 %}top-match{% endif %}">
+            <div>
+                <h3>
+                    {% if loop.index == 1 %}🏆{% endif %}
+                    {{ category.display_name }}
+                </h3>
+                <p>
+                    <span class="match-badge">{{ category.match }}% match</span>
+                    {% if loop.index == 1 %}
+                        <strong>← Best match for you!</strong>
+                    {% endif %}
+                </p>
+            </div>
+            <form method="POST" action="{{ url_for('analyze') }}" style="margin: 0;">
+                <input type="hidden" name="category" value="{{ category.name }}">
+                <button type="submit" class="btn-primary">
+                    Analyze →
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</body>
+</html>

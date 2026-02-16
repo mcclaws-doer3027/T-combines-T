@@ -1,128 +1,147 @@
 import praw
 from groq import Groq
 import json
-import re
 import time
 from datetime import datetime
-import requests
-from requests.exceptions import Timeout, RequestException
 
 class RedditOAuthAnalyzer:
     def __init__(self, config, reddit_username=None, reddit_password=None):
-        """Initialize Reddit with OAuth"""
+        """Initialize with detailed logging"""
         
-        print("🔐 Initializing Reddit OAuth...")
+        print("="*60)
+        print("🔐 INITIALIZING REDDIT")
+        print("="*60)
+        
+        print(f"Username: {reddit_username}")
+        print(f"Password: {'*' * len(reddit_password) if reddit_password else 'None'}")
         
         if reddit_username and reddit_password:
-            self.reddit = praw.Reddit(
-                client_id="ohXpoqrZYub1kg",
-                client_secret="",
-                user_agent=f"python:saas-validator:v1.0 (by /u/{reddit_username})",
-                username=reddit_username,
-                password=reddit_password,
-                timeout=10  # Add timeout!
-            )
             try:
-                print(f"✅ Authenticated as: u/{self.reddit.user.me()}")
+                self.reddit = praw.Reddit(
+                    client_id="ohXpoqrZYub1kg",
+                    client_secret="",
+                    user_agent=f"python:validator:v1 (by /u/{reddit_username})",
+                    username=reddit_username,
+                    password=reddit_password,
+                    timeout=15
+                )
+                
+                print("Testing authentication...")
+                me = self.reddit.user.me()
+                print(f"✅ Authenticated as: u/{me}")
+                
             except Exception as e:
-                print(f"⚠️ Auth issue: {e}")
+                print(f"❌ Authentication failed: {e}")
+                raise
         else:
-            self.reddit = praw.Reddit(
-                client_id="ohXpoqrZYub1kg",
-                client_secret="",
-                user_agent="python:saas-validator:v1.0",
-                timeout=10
-            )
+            print("❌ No credentials provided")
+            raise Exception("Reddit credentials missing")
         
+        print("\n🤖 INITIALIZING GROQ")
         self.groq_client = Groq(api_key=config['GROQ_API_KEY'])
-        print("✅ Groq AI initialized\n")
+        print("✅ Groq initialized\n")
     
-    def scrape_posts(self, category, limit=20):  # REDUCED from 30 to 20
-        """Scrape Reddit posts - OPTIMIZED VERSION"""
+    def scrape_posts(self, category, limit=10):
+        """DIAGNOSTIC VERSION - prints everything"""
         
+        print("="*60)
+        print(f"SCRAPING: {category}")
+        print("="*60)
+        
+        # Simple categories for testing
         categories = {
             'marketing': {
-                'subreddits': ['startups', 'entrepreneur'],  # Reduced to 2
-                'keywords': ['struggling', 'problem']  # Reduced to 2
+                'subreddits': ['startups'],
+                'keywords': ['problem']
             },
             'sales': {
-                'subreddits': ['startups', 'entrepreneur'],
-                'keywords': ['difficult', 'issue']
+                'subreddits': ['startups'],
+                'keywords': ['difficult']
             },
             'productivity': {
-                'subreddits': ['startups', 'productivity'],
-                'keywords': ['wasting time', 'inefficient']
+                'subreddits': ['startups'],
+                'keywords': ['struggling']
             },
             'developer_tools': {
-                'subreddits': ['programming', 'webdev'],
-                'keywords': ['annoying', 'tedious']
+                'subreddits': ['programming'],
+                'keywords': ['annoying']
             },
             'general': {
-                'subreddits': ['startups', 'entrepreneur'],
-                'keywords': ['problem', 'struggling']
+                'subreddits': ['startups'],
+                'keywords': ['problem']
             }
         }
         
         config = categories.get(category.lower(), categories['general'])
         posts = []
         
-        print(f"🔍 Searching {category} (fast mode)...\n")
+        print(f"Subreddits: {config['subreddits']}")
+        print(f"Keywords: {config['keywords']}")
+        print(f"Target: {limit} posts\n")
         
         for subreddit_name in config['subreddits']:
-            if len(posts) >= limit:
-                break
-                
+            print(f"\n📍 SUBREDDIT: r/{subreddit_name}")
+            
             for keyword in config['keywords']:
-                if len(posts) >= limit:
-                    break
-                    
+                print(f"\n  🔍 KEYWORD: '{keyword}'")
+                
                 try:
-                    print(f"→ r/{subreddit_name}: '{keyword}'")
-                    
+                    print(f"  Step 1: Getting subreddit object...")
                     subreddit = self.reddit.subreddit(subreddit_name)
                     
-                    # OPTIMIZED: Get fewer posts per search
-                    for submission in subreddit.search(
+                    print(f"  Step 2: Searching...")
+                    search_results = subreddit.search(
                         keyword,
-                        limit=8,  # Reduced from 15
-                        sort='hot',  # Hot is faster than new
+                        limit=5,  # Very small for testing
+                        sort='hot',
                         time_filter='month'
-                    ):
-                        # Quick filters (fail fast)
-                        if submission.score < 3:
+                    )
+                    
+                    print(f"  Step 3: Converting to list...")
+                    results_list = []
+                    for i, submission in enumerate(search_results):
+                        print(f"    Post {i+1}: {submission.title[:40]}...")
+                        results_list.append(submission)
+                        if i >= 4:  # Stop at 5
+                            break
+                    
+                    print(f"  ✅ Got {len(results_list)} posts")
+                    
+                    print(f"  Step 4: Processing posts...")
+                    for submission in results_list:
+                        print(f"    Processing: {submission.title[:30]}...")
+                        
+                        # Quick filters
+                        if submission.score < 2:
+                            print(f"      ⏭️  Skip (low score: {submission.score})")
                             continue
                         
-                        if not submission.selftext or len(submission.selftext) < 30:
+                        if not submission.selftext or len(submission.selftext) < 20:
+                            print(f"      ⏭️  Skip (no body)")
                             continue
                         
-                        if submission.selftext in ['[removed]', '[deleted]']:
-                            continue
+                        print(f"      ✓ Passed filters (score: {submission.score})")
                         
-                        # OPTIMIZED: Get only top 5 comments (not 10)
+                        # Get minimal comments
+                        print(f"      Getting comments...")
                         try:
                             submission.comments.replace_more(limit=0)
                             comments = []
-                            
-                            # Only get first 5 comments (FAST)
-                            for comment in list(submission.comments)[:5]:
-                                if hasattr(comment, 'body') and comment.body not in ['[removed]', '[deleted]']:
+                            for comment in list(submission.comments)[:3]:
+                                if hasattr(comment, 'body'):
                                     comments.append({
-                                        'text': comment.body[:200],  # Reduced from 250
+                                        'text': comment.body[:100],
                                         'score': getattr(comment, 'score', 0)
                                     })
-                                    if len(comments) >= 5:
-                                        break
+                            print(f"      ✓ Got {len(comments)} comments")
                         except Exception as e:
+                            print(f"      ⚠️  Comment error: {e}")
                             comments = []
-                        
-                        # Need at least 2 comments
-                        if len(comments) < 2:
-                            continue
                         
                         posts.append({
                             'id': submission.id,
                             'title': submission.title,
-                            'body': submission.selftext[:1000],  # Reduced from 1500
+                            'body': submission.selftext[:500],
                             'url': f"https://reddit.com{submission.permalink}",
                             'subreddit': subreddit_name,
                             'score': submission.score,
@@ -131,65 +150,71 @@ class RedditOAuthAnalyzer:
                             'comments': comments
                         })
                         
-                        print(f"  ✓ {submission.title[:45]}...")
+                        print(f"      ✅ Added to results (total: {len(posts)})")
                         
                         if len(posts) >= limit:
+                            print(f"\n  🎯 Reached target of {limit} posts!")
                             break
                         
-                        time.sleep(0.2)  # Reduced from 0.3
-                
+                        time.sleep(0.5)
+                    
                 except Exception as e:
-                    print(f"  ✗ Error: {str(e)[:40]}")
+                    print(f"  ❌ ERROR: {e}")
+                    import traceback
+                    traceback.print_exc()
                     continue
                 
-                time.sleep(0.3)  # Reduced from 0.5
+                if len(posts) >= limit:
+                    break
+                
+                time.sleep(1)
         
-        print(f"\n✅ Found {len(posts)} posts\n")
+        print(f"\n{'='*60}")
+        print(f"SCRAPING COMPLETE: {len(posts)} posts found")
+        print(f"{'='*60}\n")
+        
         return posts
     
     def analyze_post(self, post):
-        """Analyze with Groq AI - OPTIMIZED"""
+        """Analyze with Groq - simplified"""
         
-        # Shorter comment summary
+        print(f"  🤖 Analyzing with AI...")
+        
         comments_text = "\n".join([
-            f"- {c['text'][:80]}... ({c['score']}↑)"
-            for c in post['comments'][:5]  # Only 5 comments
+            f"- {c['text'][:50]}..."
+            for c in post['comments'][:3]
         ])
         
-        # SHORTER PROMPT (faster processing)
-        prompt = f"""Analyze for SaaS validation. Return ONLY valid JSON.
+        prompt = f"""Analyze this briefly. Return ONLY JSON:
 
 Title: {post['title']}
-r/{post['subreddit']} | {post['score']}↑
-
-Post: {post['body'][:600]}
-
+Body: {post['body'][:300]}
 Comments: {comments_text}
 
-Return exactly:
+Return:
 {{
   "pain_score": 0-100,
   "business_context": true/false,
   "willingness_to_pay": "high/medium/low/none",
   "frequency": "daily/weekly/monthly",
   "people_affected": number,
-  "key_pain_indicators": ["phrase1", "phrase2"],
+  "key_pain_indicators": ["phrase1"],
   "me_too_count": number,
-  "existing_solutions": ["tool1"],
-  "solution_gaps": ["gap1"],
+  "existing_solutions": [],
+  "solution_gaps": [],
   "recommendation": "strong_opportunity/moderate/weak/skip",
-  "reasoning": "brief under 20 words"
+  "reasoning": "brief"
 }}"""
 
         try:
             response = self.groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "SaaS validator. Return only JSON, no markdown."},
+                    {"role": "system", "content": "Return only JSON."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.2,
-                max_tokens=500  # Reduced from 600
+                max_tokens=400
             )
             
             ai_text = response.choices[0].message.content
@@ -198,138 +223,60 @@ Return exactly:
             analysis = json.loads(ai_text)
             analysis['opportunity_score'] = self._calculate_score(post, analysis)
             
+            print(f"  ✅ AI analysis complete (score: {analysis['opportunity_score']})")
+            
             return analysis
         
         except Exception as e:
-            print(f"  ✗ AI error: {str(e)[:40]}")
+            print(f"  ❌ AI error: {e}")
             return None
     
     def _calculate_score(self, post, analysis):
-        """Calculate score - SAME AS BEFORE"""
-        
+        """Simple scoring"""
         score = analysis['pain_score'] * 2.5
-        score += min(100, post['score'] / 5 + post['num_comments'])
-        
+        score += min(100, post['score'] / 5)
         wtp = {'high': 200, 'medium': 100, 'low': 50, 'none': 0}
         score += wtp.get(analysis['willingness_to_pay'], 0)
-        
-        score += min(80, analysis['me_too_count'] * 10)
-        
-        people = analysis['people_affected']
-        score += 80 if people > 5000 else (50 if people > 1000 else 20)
-        
-        solutions = len(analysis['existing_solutions'])
-        gaps = len(analysis['solution_gaps'])
-        score += 80 if solutions == 0 else (60 if gaps > solutions else 30)
-        
         return min(1000, int(score))
-    import re
-
-def extract_competitors(posts):
-    """Extract competitor mentions from posts"""
     
-    competitors = {}
-    
-    # Common patterns for tool mentions
-    tool_pattern = r'\b([A-Z][a-z]+(?:[A-Z][a-z]+)*)\b'  # CamelCase names
-    
-    for post in posts:
-        # Search in post body
-        text = post['body'] + ' ' + post['title']
+    def analyze_category(self, category, limit=5):
+        """Full pipeline - diagnostic version"""
         
-        # Also search comments
-        for comment in post.get('comments', []):
-            text += ' ' + comment['text']
-        
-        # Find potential tool names
-        potential_tools = re.findall(tool_pattern, text)
-        
-        # Common competitors (you can expand this)
-        known_competitors = [
-            'HubSpot', 'Salesforce', 'Mailchimp', 'Stripe', 'Zapier',
-            'Asana', 'Trello', 'Slack', 'Notion', 'Airtable',
-            'Intercom', 'Zendesk', 'Mixpanel', 'Amplitude'
-        ]
-        
-        for tool in potential_tools:
-            if tool in known_competitors:
-                # Extract context around mention
-                context_pattern = rf'.{{0,50}}\b{tool}\b.{{0,50}}'
-                contexts = re.findall(context_pattern, text, re.IGNORECASE)
-                
-                if tool not in competitors:
-                    competitors[tool] = {
-                        'mentions': 0,
-                        'complaints': [],
-                        'contexts': []
-                    }
-                
-                competitors[tool]['mentions'] += 1
-                competitors[tool]['contexts'].extend(contexts[:3])
-                
-                # Check for negative sentiment
-                for ctx in contexts:
-                    if any(word in ctx.lower() for word in ['expensive', 'complex', 'difficult', 'slow', 'bad', 'hate']):
-                        competitors[tool]['complaints'].append(ctx.strip())
-    
-    # Sort by mentions
-    sorted_competitors = dict(sorted(
-        competitors.items(),
-        key=lambda x: x[1]['mentions'],
-        reverse=True
-    ))
-    
-    return sorted_competitors
-    def analyze_category(self, category, limit=15):  # REDUCED from 30 to 15
-        """Full pipeline - OPTIMIZED"""
-        
-        print(f"\n{'='*60}")
-        print(f"🚀 Fast Analysis: {category}")
-        print(f"{'='*60}\n")
+        print("\n" + "="*60)
+        print(f"STARTING ANALYSIS: {category}")
+        print("="*60 + "\n")
         
         start_time = time.time()
         
-        # STEP 1: Scrape (should take ~30-60 seconds)
+        # Scrape
         posts = self.scrape_posts(category, limit=limit)
         
         if not posts:
-            print("❌ No posts found\n")
+            print("❌ No posts found!\n")
             return []
         
-        scrape_time = time.time() - start_time
-        print(f"⏱️  Scraping took: {scrape_time:.1f}s\n")
+        print(f"\n🤖 ANALYZING {len(posts)} POSTS WITH AI\n")
         
-        # STEP 2: Analyze with AI
-        print(f"🤖 Analyzing {len(posts)} posts...\n")
-        # NEW: Extract competitors
-    competitors = extract_competitors(results)
-    
-    results = []
-
-    for i, post in enumerate(posts, 1):
-        print(f"[{i}/{len(posts)}] {post['title'][:50]}...")
+        results = []
+        for i, post in enumerate(posts, 1):
+            print(f"[{i}/{len(posts)}] {post['title'][:40]}...")
+            
+            analysis = self.analyze_post(post)
+            
+            if analysis:
+                post['analysis'] = analysis
+                results.append(post)
+            
+            time.sleep(0.5)
         
-        analysis = self.analyze_post(post)
+        results.sort(key=lambda x: x['analysis']['opportunity_score'], reverse=True)
         
-        if analysis and analysis['recommendation'] != 'skip':
-            post['analysis'] = analysis
-            results.append(post)
-            print(f"  ✅ {analysis['opportunity_score']}/1000")
-        else:
-            print(f"  ⏭️  Skipped")
+        elapsed = time.time() - start_time
         
-        time.sleep(0.5)  # Reduced from 0.8
-
-    results.sort(key=lambda x: x['analysis']['opportunity_score'], reverse=True)
+        print(f"\n{'='*60}")
+        print(f"✅ ANALYSIS COMPLETE")
+        print(f"   Found: {len(results)} opportunities")
+        print(f"   Time: {elapsed:.1f} seconds")
+        print(f"{'='*60}\n")
         
-    total_time = time.time() - start_time
-
-    for result in results:
-        result['competitors'] = competitors
-        
-    print(f"\n{'='*60}")
-    print(f"✅ Found {len(results)} opportunities")
-    print(f"⏱️  Total time: {total_time:.1f}s (~{total_time/60:.1f} min)")
-    print(f"{'='*60}\n")
-
-    return results
+        return results

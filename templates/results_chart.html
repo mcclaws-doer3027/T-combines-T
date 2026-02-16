@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Results - IdeaValidator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #chartContainer {
+            max-width: 1000px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 600px;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <h2>💡 IdeaValidator</h2>
+            <div>
+                <a href="{{ url_for('dashboard') }}" class="btn-secondary">← Dashboard</a>
+                <a href="{{ url_for('export_csv', analysis_id=analysis.id) }}" class="btn-primary">Export CSV</a>
+            </div>
+        </div>
+    </nav>
+
+    <div id="chartContainer">
+        <h1>{{ analysis.category|title }} - Top Opportunities</h1>
+        <p>{{ analysis.num_opportunities }} opportunities found. Click any bar for details.</p>
+        
+        <div class="chart-wrapper">
+            <canvas id="opportunityChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const results = {{ results|tojson }};
+        
+        // Prepare data for chart
+        const labels = results.map(r => {
+            // Truncate long titles
+            const title = r.title.substring(0, 40);
+            return title.length < r.title.length ? title + '...' : title;
+        });
+        
+        const scores = results.map(r => r.analysis.opportunity_score);
+        
+        // Color bars by recommendation
+        const colors = results.map(r => {
+            if (r.analysis.recommendation === 'strong_opportunity') return '#10b981';
+            if (r.analysis.recommendation === 'moderate') return '#f59e0b';
+            return '#ef4444';
+        });
+        
+        // Create chart
+        const ctx = document.getElementById('opportunityChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Opportunity Score',
+                    data: scores,
+                    backgroundColor: colors,
+                    borderColor: colors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y', // Horizontal bars
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (event, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const problemId = results[index].id;
+                        // Redirect to detail page
+                        window.location.href = `/problem/${problemId}`;
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                return `Score: ${context.parsed.x}/1000`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 1000,
+                        title: {
+                            display: true,
+                            text: 'Opportunity Score'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
